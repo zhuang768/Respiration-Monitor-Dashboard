@@ -126,9 +126,20 @@ function App() {
   };
 
   const handleConnect = () => {
-    if (customUrlInput.trim() !== '') {
+    let url = customUrlInput.trim();
+    if (url !== '') {
+      // 如果使用者忘記加 /api/data，自動幫他加上
+      if (url.startsWith('http') && !url.endsWith('/api/data')) {
+        // 移除結尾可能有的斜線
+        if (url.endsWith('/')) {
+          url = url.slice(0, -1);
+        }
+        url = url + '/api/data';
+        setCustomUrlInput(url);
+      }
+      
       setConnState('connecting');
-      setApiUrl(customUrlInput.trim());
+      setApiUrl(url);
       setData({ amplitudes: [], status: 'normal', reason: '嘗試連線中...', timestamp: '' });
     }
   };
