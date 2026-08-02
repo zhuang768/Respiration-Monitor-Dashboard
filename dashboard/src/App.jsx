@@ -37,7 +37,25 @@ function App() {
   
   const [logs, setLogs] = useState([]);
   const previousTimestamp = useRef('');
+  
+  // 統計數據
+  const [startTime] = useState(Date.now());
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+  const [abnormalCount, setAbnormalCount] = useState(0);
 
+  // 計時器 (經過時間)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const diffSecs = Math.floor((Date.now() - startTime) / 1000);
+      const h = String(Math.floor(diffSecs / 3600)).padStart(2, '0');
+      const m = String(Math.floor((diffSecs % 3600) / 60)).padStart(2, '0');
+      const s = String(diffSecs % 60).padStart(2, '0');
+      setElapsedTime(`${h}:${m}:${s}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [startTime]);
+
+  // 抓取資料
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -46,7 +64,6 @@ function App() {
         
         setData(result);
 
-        // 如果 timestamp 更新了，代表收到一筆新資料，我們記錄到日誌
         if (result.timestamp !== previousTimestamp.current && result.timestamp !== '') {
           previousTimestamp.current = result.timestamp;
           
@@ -56,14 +73,12 @@ function App() {
               status: result.status,
               reason: result.reason
             };
-            const updatedLogs = [newLog, ...prev];
-            // 只保留最近 50 筆紀錄
-            return updatedLogs.slice(0, 50);
+            return [newLog, ...prev].slice(0, 100); // 擴增紀錄數量
           });
 
-          // 如果異常，觸發警報音
           if (result.status === 'abnormal') {
-            AUDIO_ALERT.play().catch(e => console.log('Audio play failed (browser policy):', e));
+            setAbnormalCount(c => c + 1);
+            AUDIO_ALERT.play().catch(e => console.log('Audio error:', e));
           }
         }
       } catch (error) {
@@ -71,25 +86,43 @@ function App() {
       }
     };
 
-    // 每 2 秒抓取一次資料
     const interval = setInterval(fetchData, 2000);
-    fetchData(); // 初始抓取
+    fetchData();
 
     return () => clearInterval(interval);
   }, []);
 
-  // 設定 Chart.js 資料
+  // 匯出 CSV 功能
+  const handleExportCSV = () => {
+    let csv = "Time,Status,Reason\n";
+    logs.forEach(log => {
+      // 簡單處理跳脫字元
+      const safeReason = log.reason.replace(/"/g, '""');
+      csv += `"${log.time}","${log.status.toUpperCase()}","${safeReason}"\n`;
+    });
+    
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `respiration_log_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Chart 設定
   const chartData = {
     labels: data.amplitudes.map((_, index) => (index * 0.1).toFixed(1) + 's'),
     datasets: [
       {
         fill: true,
-        label: '呼吸振幅 (Amplitude)',
+        label: 'Amplitude',
         data: data.amplitudes,
         borderColor: '#2C5282',
-        backgroundColor: 'rgba(44, 82, 130, 0.1)',
-        tension: 0.4, // 平滑曲線
-        pointRadius: 0, // 隱藏資料點讓畫面更乾淨
+        // 使用漸層或單一低透明度背景，此處用簡單的半透明色即可，漸層通常需要在 canvas 上繪製
+        backgroundColor: 'rgba(44, 82, 130, 0.2)', 
+        tension: 0.4,
+        pointRadius: 0,
         borderWidth: 2,
       },
     ],
@@ -98,37 +131,54 @@ function App() {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    animation: {
-      duration: 500
-    },
+    animation: { duration: 500 },
     scales: {
       y: {
         beginAtZero: true,
-        grid: { color: '#E2E8F0' }
+        grid: { color: 'rgba(44, 82, 130, 0.1)' } // 配合 ECG 風格
       },
       x: {
-        grid: { display: false }
+        grid: { display: false },
+        ticks: { maxTicksLimit: 10 }
       }
     },
     plugins: {
       legend: { display: false },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-      }
+      tooltip: { mode: 'index', intersect: false }
     }
   };
 
   return (
     <div className="dashboard-container">
+      
       <div className="header">
-        <h1 className="title">Respiration Monitor Pro</h1>
-        <div style={{ color: '#718096' }}>系統狀態：連線中</div>
+        <h1 className="title">Respiration Monitor Pro (AI)</h1>
+        <div className="actions">
+          <button className="btn-export" onClick={handleExportCSV}>匯出 CSV 報告</button>
+        </div>
+      </div>
+
+      {/* 病患資訊列 */}
+      <div className="demographics-bar">
+        <div className="demo-group">
+          <div className="demo-item">
+            <span className="demo-label">Patient ID</span>
+            <span className="demo-value">#PT-20485</span>
+          </div>
+          <div className="demo-item">
+            <span className="demo-label">Name</span>
+            <span className="demo-value">Anonymous User</span>
+          </div>
+          <div className="demo-item">
+            <span className="demo-label">Session Start</span>
+            <span className="demo-value">{new Date(startTime).toLocaleTimeString()}</span>
+          </div>
+        </div>
+        <div style={{ color: '#38A169', fontWeight: 'bold' }}>● SYSTEM ONLINE</div>
       </div>
 
       <div className="dashboard-grid">
-        {/* 左側：波形與狀態 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           
           {/* 狀態卡片 */}
           <div className={`status-indicator ${data.status}`}>
@@ -137,22 +187,42 @@ function App() {
                data.status === 'abnormal' ? '異常 (ABNORMAL)' : '等待中 (WAITING)'}
             </h2>
             <p className="reason-text">{data.reason}</p>
-            {data.timestamp && (
-              <p style={{ marginTop: '1rem', color: '#718096', fontSize: '0.9rem' }}>
-                最後更新: {data.timestamp}
-              </p>
-            )}
+          </div>
+
+          {/* 統計區塊 */}
+          <div className="stats-container">
+            <div className="stat-box">
+              <div className="stat-label">Elapsed Time</div>
+              <div className="stat-number">{elapsedTime}</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-label">Abnormal Events</div>
+              <div className={`stat-number ${abnormalCount > 0 ? 'danger' : ''}`}>
+                {abnormalCount}
+              </div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-label">Event Rate (per hr)</div>
+              <div className="stat-number">
+                {elapsedTime !== '00:00:00' 
+                  ? ((abnormalCount / Math.max(1, (Date.now() - startTime)/1000)) * 3600).toFixed(1) 
+                  : '0.0'}
+              </div>
+            </div>
           </div>
 
           {/* 波形圖表 */}
-          <div className="card">
-            <h3 className="card-title">即時波形監控 (Live Waveform)</h3>
+          <div className="card" style={{ flexGrow: 1 }}>
+            <h3 className="card-title">
+              <span>即時心肺波形 (ECG/Resp Waveform)</span>
+              {data.timestamp && <span style={{fontSize: '0.8rem', color: '#718096'}}>Last Update: {data.timestamp}</span>}
+            </h3>
             <div className="chart-container">
               {data.amplitudes.length > 0 ? (
                 <Line options={chartOptions} data={chartData} />
               ) : (
                 <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#718096' }}>
-                  等待接收 10 秒感測器資料...
+                  等待接收感測器資料...
                 </div>
               )}
             </div>
@@ -160,8 +230,8 @@ function App() {
         </div>
 
         {/* 右側：診斷日誌 */}
-        <div className="card" style={{ alignSelf: 'start' }}>
-          <h3 className="card-title">AI 診斷日誌 (Diagnostic Log)</h3>
+        <div className="card">
+          <h3 className="card-title">診斷紀錄 (Session Logs)</h3>
           <ul className="log-list">
             {logs.length === 0 && (
               <li className="log-item" style={{ textAlign: 'center', color: '#718096' }}>暫無紀錄</li>
