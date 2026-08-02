@@ -142,7 +142,37 @@ body {
 .conn-status {
   font-size: 0.8rem;
   color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
+
+/* Spinner Animation */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(44, 82, 130, 0.2);
+  border-left-color: var(--clinical-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.status-badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: white;
+}
+.status-badge.connecting { background-color: #D69E2E; }
+.status-badge.connected { background-color: #38A169; }
+.status-badge.error { background-color: #E53E3E; }
+.status-badge.idle { background-color: #A0AEC0; }
 
 /* Header */
 .header {

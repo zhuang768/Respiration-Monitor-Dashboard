@@ -29,6 +29,7 @@ const AUDIO_ALERT = new Audio('https://actions.google.com/sounds/v1/alarms/beep_
 function App() {
   const [apiUrl, setApiUrl] = useState('http://localhost:5001/api/data');
   const [customUrlInput, setCustomUrlInput] = useState('');
+  const [connState, setConnState] = useState('connecting'); // idle, connecting, connected, error
 
   const [data, setData] = useState({
     amplitudes: [],
@@ -64,8 +65,8 @@ function App() {
       try {
         const response = await fetch(apiUrl, {
           headers: {
-            'Bypass-Tunnel-Reminder': 'true', // For localtunnel bypass
-            'ngrok-skip-browser-warning': 'true', // For ngrok bypass
+            'Bypass-Tunnel-Reminder': 'true',
+            'ngrok-skip-browser-warning': 'true',
           }
         });
         
@@ -75,6 +76,7 @@ function App() {
 
         const result = await response.json();
         
+        setConnState('connected');
         setData(result);
 
         if (result.timestamp !== previousTimestamp.current && result.timestamp !== '') {
@@ -86,7 +88,7 @@ function App() {
               status: result.status,
               reason: result.reason
             };
-            return [newLog, ...prev].slice(0, 100); // 擴增紀錄數量
+            return [newLog, ...prev].slice(0, 100);
           });
 
           if (result.status === 'abnormal') {
@@ -96,16 +98,17 @@ function App() {
         }
       } catch (error) {
         console.error('API 連線失敗:', error);
+        setConnState('error');
       }
     };
 
+    setConnState('connecting'); // 每次網址變更，先設為連線中
     const interval = setInterval(fetchData, 2000);
-    fetchData(); // 立即執行一次
+    fetchData(); 
 
     return () => clearInterval(interval);
   }, [apiUrl]);
 
-  // 匯出 CSV 功能
   const handleExportCSV = () => {
     let csv = "Time,Status,Reason\n";
     logs.forEach(log => {
@@ -124,13 +127,12 @@ function App() {
 
   const handleConnect = () => {
     if (customUrlInput.trim() !== '') {
+      setConnState('connecting');
       setApiUrl(customUrlInput.trim());
-      // 重置狀態
-      setData({ amplitudes: [], status: 'normal', reason: '連線中...', timestamp: '' });
+      setData({ amplitudes: [], status: 'normal', reason: '嘗試連線中...', timestamp: '' });
     }
   };
 
-  // Chart 設定
   const chartData = {
     labels: data.amplitudes.map((_, index) => (index * 0.1).toFixed(1) + 's'),
     datasets: [
@@ -188,11 +190,23 @@ function App() {
             value={customUrlInput}
             onChange={(e) => setCustomUrlInput(e.target.value)}
           />
-          <button className="btn-connect" onClick={handleConnect}>連線</button>
+          <button className="btn-connect" onClick={handleConnect}>
+            {connState === 'connecting' ? '連線中...' : '連線'}
+          </button>
           <button className="btn-reset" onClick={() => { setApiUrl('http://localhost:5001/api/data'); setCustomUrlInput(''); }}>恢復 localhost</button>
         </div>
         <div className="conn-status">
           目前連線: <span style={{fontWeight: 600, color: '#2C5282'}}>{apiUrl}</span>
+          
+          {connState === 'connecting' && (
+            <>
+              <div className="spinner"></div> 
+              <span className="status-badge connecting">連線中...</span>
+            </>
+          )}
+          {connState === 'connected' && <span className="status-badge connected">連線成功</span>}
+          {connState === 'error' && <span className="status-badge error">連線失敗，請檢查網址或伺服器</span>}
+          {connState === 'idle' && <span className="status-badge idle">待命中</span>}
         </div>
       </div>
 
@@ -212,7 +226,9 @@ function App() {
             <span className="demo-value">{new Date(startTime).toLocaleTimeString()}</span>
           </div>
         </div>
-        <div style={{ color: '#38A169', fontWeight: 'bold' }}>● SYSTEM ONLINE</div>
+        <div style={{ color: connState === 'connected' ? '#38A169' : '#A0AEC0', fontWeight: 'bold' }}>
+          ● SYSTEM {connState === 'connected' ? 'ONLINE' : 'OFFLINE'}
+        </div>
       </div>
 
       <div className="dashboard-grid">
@@ -260,7 +276,11 @@ function App() {
                 <Line options={chartOptions} data={chartData} />
               ) : (
                 <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#718096' }}>
-                  等待接收感測器資料...
+                  {connState === 'connecting' ? (
+                    <><div className="spinner" style={{marginRight: '8px', borderLeftColor: '#718096'}}></div>正在等待接收感測器資料...</>
+                  ) : (
+                    '無資料 (連線斷開)'
+                  )}
                 </div>
               )}
             </div>
