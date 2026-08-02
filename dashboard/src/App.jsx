@@ -227,7 +227,7 @@ function App() {
           </div>
         </div>
         <div style={{ color: connState === 'connected' ? '#38A169' : '#A0AEC0', fontWeight: 'bold' }}>
-          ● SYSTEM {connState === 'connected' ? 'ONLINE' : 'OFFLINE'}
+          SYSTEM {connState === 'connected' ? 'ONLINE' : 'OFFLINE'}
         </div>
       </div>
 
