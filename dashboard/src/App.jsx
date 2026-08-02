@@ -24,10 +24,12 @@ ChartJS.register(
   Legend
 );
 
-const API_URL = 'http://localhost:5001/api/data';
 const AUDIO_ALERT = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
 
 function App() {
+  const [apiUrl, setApiUrl] = useState('http://localhost:5001/api/data');
+  const [customUrlInput, setCustomUrlInput] = useState('');
+
   const [data, setData] = useState({
     amplitudes: [],
     status: 'normal',
@@ -58,8 +60,19 @@ function App() {
   // 抓取資料
   useEffect(() => {
     const fetchData = async () => {
+      if (!apiUrl) return;
       try {
-        const response = await fetch(API_URL);
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Bypass-Tunnel-Reminder': 'true', // For localtunnel bypass
+            'ngrok-skip-browser-warning': 'true', // For ngrok bypass
+          }
+        });
+        
+        if (!response.ok) {
+           throw new Error('Network response was not ok');
+        }
+
         const result = await response.json();
         
         setData(result);
@@ -87,16 +100,15 @@ function App() {
     };
 
     const interval = setInterval(fetchData, 2000);
-    fetchData();
+    fetchData(); // 立即執行一次
 
     return () => clearInterval(interval);
-  }, []);
+  }, [apiUrl]);
 
   // 匯出 CSV 功能
   const handleExportCSV = () => {
     let csv = "Time,Status,Reason\n";
     logs.forEach(log => {
-      // 簡單處理跳脫字元
       const safeReason = log.reason.replace(/"/g, '""');
       csv += `"${log.time}","${log.status.toUpperCase()}","${safeReason}"\n`;
     });
@@ -110,6 +122,14 @@ function App() {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleConnect = () => {
+    if (customUrlInput.trim() !== '') {
+      setApiUrl(customUrlInput.trim());
+      // 重置狀態
+      setData({ amplitudes: [], status: 'normal', reason: '連線中...', timestamp: '' });
+    }
+  };
+
   // Chart 設定
   const chartData = {
     labels: data.amplitudes.map((_, index) => (index * 0.1).toFixed(1) + 's'),
@@ -119,7 +139,6 @@ function App() {
         label: 'Amplitude',
         data: data.amplitudes,
         borderColor: '#2C5282',
-        // 使用漸層或單一低透明度背景，此處用簡單的半透明色即可，漸層通常需要在 canvas 上繪製
         backgroundColor: 'rgba(44, 82, 130, 0.2)', 
         tension: 0.4,
         pointRadius: 0,
@@ -135,7 +154,7 @@ function App() {
     scales: {
       y: {
         beginAtZero: true,
-        grid: { color: 'rgba(44, 82, 130, 0.1)' } // 配合 ECG 風格
+        grid: { color: 'rgba(44, 82, 130, 0.1)' } 
       },
       x: {
         grid: { display: false },
@@ -155,6 +174,25 @@ function App() {
         <h1 className="title">Respiration Monitor Pro (AI)</h1>
         <div className="actions">
           <button className="btn-export" onClick={handleExportCSV}>匯出 CSV 報告</button>
+        </div>
+      </div>
+
+      {/* 連線設定列 */}
+      <div className="connection-bar">
+        <div className="conn-input-group">
+          <label className="conn-label">伺服器資料來源 (API URL):</label>
+          <input 
+            type="text" 
+            className="conn-input" 
+            placeholder="例如: https://xxx-xxx.loca.lt/api/data"
+            value={customUrlInput}
+            onChange={(e) => setCustomUrlInput(e.target.value)}
+          />
+          <button className="btn-connect" onClick={handleConnect}>連線</button>
+          <button className="btn-reset" onClick={() => { setApiUrl('http://localhost:5001/api/data'); setCustomUrlInput(''); }}>恢復 localhost</button>
+        </div>
+        <div className="conn-status">
+          目前連線: <span style={{fontWeight: 600, color: '#2C5282'}}>{apiUrl}</span>
         </div>
       </div>
 

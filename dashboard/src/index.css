@@ -75,6 +75,75 @@ body {
   color: var(--text-primary);
 }
 
+/* Connection Bar */
+.connection-bar {
+  background-color: #EBF8FF;
+  border: 1px solid #90CDF4;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.conn-input-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.conn-label {
+  font-weight: 600;
+  color: var(--clinical-blue);
+  font-size: 0.9rem;
+}
+
+.conn-input {
+  flex-grow: 1;
+  padding: 0.5rem;
+  border: 1px solid #CBD5E0;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.conn-input:focus {
+  outline: none;
+  border-color: var(--clinical-blue);
+  box-shadow: 0 0 0 2px rgba(44, 82, 130, 0.2);
+}
+
+.btn-connect {
+  background-color: var(--status-normal);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-connect:hover {
+  background-color: #2F855A;
+}
+
+.btn-reset {
+  background-color: var(--text-secondary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.conn-status {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
 /* Header */
 .header {
   display: flex;
