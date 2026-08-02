@@ -27,8 +27,10 @@ ChartJS.register(
 const AUDIO_ALERT = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
 
 function App() {
-  const [apiUrl, setApiUrl] = useState('http://localhost:5001/api/data');
-  const [customUrlInput, setCustomUrlInput] = useState('');
+  // 嘗試從 localStorage 讀取上次成功連線的網址，若無則提供 ngrok 預設網址
+  const savedUrl = localStorage.getItem('savedApiUrl') || 'https://removable-oozy-province.ngrok-free.dev/api/data';
+  const [apiUrl, setApiUrl] = useState(savedUrl);
+  const [customUrlInput, setCustomUrlInput] = useState(savedUrl);
   const [connState, setConnState] = useState('connecting'); // idle, connecting, connected, error
 
   const [data, setData] = useState({
@@ -138,6 +140,8 @@ function App() {
         setCustomUrlInput(url);
       }
       
+      localStorage.setItem('savedApiUrl', url); // 儲存至瀏覽器，下次重新整理自動帶入
+      
       setConnState('connecting');
       setApiUrl(url);
       setData({ amplitudes: [], status: 'normal', reason: '嘗試連線中...', timestamp: '' });
@@ -204,7 +208,12 @@ function App() {
           <button className="btn-connect" onClick={handleConnect}>
             {connState === 'connecting' ? '連線中...' : '連線'}
           </button>
-          <button className="btn-reset" onClick={() => { setApiUrl('http://localhost:5001/api/data'); setCustomUrlInput(''); }}>恢復 localhost</button>
+          <button className="btn-reset" onClick={() => { 
+            const local = 'http://localhost:5001/api/data';
+            setApiUrl(local); 
+            setCustomUrlInput(local); 
+            localStorage.removeItem('savedApiUrl');
+          }}>恢復 localhost</button>
         </div>
         <div className="conn-status">
           目前連線: <span style={{fontWeight: 600, color: '#2C5282'}}>{apiUrl}</span>
